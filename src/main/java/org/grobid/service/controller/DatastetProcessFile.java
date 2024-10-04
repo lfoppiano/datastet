@@ -40,9 +40,6 @@ import java.util.NoSuchElementException;
 @Singleton
 public class DatastetProcessFile {
 
-    /**
-     * The class Logger.
-     */
     private static final Logger LOGGER = LoggerFactory.getLogger(DatastetProcessFile.class);
 
     @Inject
@@ -193,7 +190,7 @@ public class DatastetProcessFile {
      * @return a response object which contains JSON annotation enrichments
      */
     public static Response processDatasetPDF(final InputStream inputStream,
-                                        boolean addParagraphContext) {
+                                        boolean disambiguate) {
         LOGGER.debug(methodLogIn());
         String retVal = null;
         Response response = null;
@@ -202,7 +199,6 @@ public class DatastetProcessFile {
         DatasetParser parser = DatasetParser.getInstance(classifier.getDatastetConfiguration());
         JsonStringEncoder encoder = JsonStringEncoder.getInstance();
 
-        boolean disambiguate = false;
         try {
             ObjectMapper mapper = new ObjectMapper();
 
@@ -220,8 +216,7 @@ public class DatastetProcessFile {
 
             long start = System.currentTimeMillis();
             // starts conversion process
-            Pair<List<List<Dataset>>, Document> extractedResults = 
-                    parser.processPDF(originFile, disambiguate);
+            Pair<List<List<Dataset>>, Document> extractedResults = parser.processPDF(originFile, disambiguate);
             
             StringBuilder json = new StringBuilder();
             json.append("{ ");

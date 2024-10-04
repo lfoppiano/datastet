@@ -32,7 +32,7 @@ public class DatastetController implements DatastetPaths {
     private static final String PDF = "pdf";
     private static final String INPUT = "input";
     private static final String JSON = "json";
-    private static final String ADD_PARAGRAPH_CONTEXT = "addParagraphContext";
+    private static final String DISAMBIGUATE = "addParagraphContext";
     private static final String SEGMENT_SENTENCES = "segmentSentences";
 
     private DatastetConfiguration configuration;
@@ -120,9 +120,9 @@ public class DatastetController implements DatastetPaths {
     @Produces(MediaType.APPLICATION_XML)
     @POST
     public Response processDatasetPDF(@FormDataParam(INPUT) InputStream inputStream,
-                                      @DefaultValue("0") @FormDataParam(ADD_PARAGRAPH_CONTEXT) String addParagraphContext) {
-        boolean addParagraphContextBoolean = DatastetServiceUtils.validateBooleanRawParam(addParagraphContext);
-        return DatastetProcessFile.processDatasetPDF(inputStream, addParagraphContextBoolean);
+                                      @DefaultValue("0") @FormDataParam(DISAMBIGUATE) String disambiguate) {
+        boolean disambiguateBoolean = DatastetServiceUtils.validateBooleanRawParam(disambiguate);
+        return DatastetProcessFile.processDatasetPDF(inputStream, disambiguateBoolean);
     }
 
     @Path(PATH_DATASET_TEI)
@@ -132,11 +132,11 @@ public class DatastetController implements DatastetPaths {
     public Response processDatasetTEI(
             @FormDataParam(INPUT) InputStream inputStream,
             @DefaultValue("0") @FormDataParam(SEGMENT_SENTENCES) String segmentSentences,
-            @DefaultValue("0") @FormDataParam(ADD_PARAGRAPH_CONTEXT) String addParagraphContext
+            @DefaultValue("0") @FormDataParam(DISAMBIGUATE) String disambiguate
     ) {
-        boolean addParagraphContextBoolean = DatastetServiceUtils.validateBooleanRawParam(addParagraphContext);
+        boolean disambiguateBoolean = DatastetServiceUtils.validateBooleanRawParam(disambiguate);
         boolean segmentSentencesBoolean = DatastetServiceUtils.validateBooleanRawParam(segmentSentences);
-        return DatastetProcessFile.processDatasetTEI(inputStream, segmentSentencesBoolean, addParagraphContextBoolean);
+        return DatastetProcessFile.processDatasetTEI(inputStream, segmentSentencesBoolean, disambiguateBoolean);
     }
 
     @Path(PATH_DATASET_JATS)
@@ -144,7 +144,7 @@ public class DatastetController implements DatastetPaths {
     @Produces(MediaType.APPLICATION_JSON)
     @POST
     public Response processJATS(@FormDataParam(INPUT) InputStream inputStream,
-                                @DefaultValue("0") @FormDataParam(ADD_PARAGRAPH_CONTEXT) String addParagraphContext) {
+                                @DefaultValue("0") @FormDataParam(DISAMBIGUATE) String addParagraphContext) {
         boolean addParagraphContextBoolean = DatastetServiceUtils.validateBooleanRawParam(addParagraphContext);
         return DatastetProcessFile.processDatasetJATS(inputStream, addParagraphContextBoolean);
     }
