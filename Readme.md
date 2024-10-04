@@ -156,12 +156,6 @@ curl -X POST -d "text=Insulin levels of all samples were measured by ELISA kit (
 curl -GET --data-urlencode "text=Insulin levels of all samples were measured by ELISA kit (Mercodia)." localhost:8060/service/annotateDatasetSentence
 ```
 
-which should return this:
-
-```json
-
-```
-
 Runtimes are expressed in milliseconds.
 
 #### /service/annotateDatasetPDF
@@ -198,6 +192,82 @@ Using ```curl``` POST request with a __TEI-XML file__:
 
 ```console
 curl --form input=@./src/test/resources/PMC1636350.tei.xml --form segmentSentences=1 localhost:8060/service/annotateDatasetTEI
+```
+
+### Output data format
+
+The output data format is JSON format as follows: 
+
+```json 
+{
+  "application" : "datastet",
+  "version" : "0.8.0",
+  "date" : "2024-10-04T07:31+0000",
+  "md5" : "F1F1BC4C79AC8A8E85D1EAF4265B97FB",
+  "mentions" : [ {
+    "rawForm" : "Data",
+    "type" : "dataset-implicit",
+    "dataset-implicit" : {
+      "rawForm" : "Data",
+      "normalizedForm" : "Data",
+      "offsetStart" : 0,
+      "offsetEnd" : 4,
+      "bestDataType" : "tabular data",
+      "bestTypeScore" : 0.9997,
+      "hasDataset" : 0.9999992251396179
+    },
+    "normalizedForm" : "Data",
+    "context" : "Data were abstracted between May 1, 2013, and May 31, 2019.",
+    "sequenceIds" : [ "_9ur99tq" ],
+    "mentionContextAttributes" : {
+      "used" : {
+        "value" : true,
+        "score" : 0.9983055591583252
+      },
+      "created" : {
+        "value" : false,
+        "score" : 0.0012440516147762537
+      },
+      "shared" : {
+        "value" : false,
+        "score" : 4.503394302446395E-4
+      }
+    }
+  }, {
+    "rawForm" : "Participants",
+    "type" : "dataset-implicit",
+    "dataset-implicit" : {
+      "rawForm" : "Participants",
+      "normalizedForm" : "Participants",
+      "offsetStart" : 0,
+      "offsetEnd" : 12,
+      "bestDataType" : "tabular data",
+      "bestTypeScore" : 1,
+      "hasDataset" : 0.9995082020759583
+    },
+    "normalizedForm" : "Participants",
+    "context" : "Participants diagnosed with EHE were identified from retrospective sarcoma studies at The Ohio State University James Comprehensive Cancer Center, Roswell Park Cancer Institute, Johns Hopkins Medical Center, and Cincinnati Children's Hospital Medical Center.",
+    "sequenceIds" : [ "_9xa5mM3" ],
+    "mentionContextAttributes" : {
+      "used" : {
+        "value" : true,
+        "score" : 0.9997870922088623
+      },
+      "created" : {
+        "value" : false,
+        "score" : 1.7334939911961555E-4
+      },
+      "shared" : {
+        "value" : false,
+        "score" : 3.966953590861522E-5
+      }
+    }
+  }
+    ...
+  "references" : [ ],
+  "runtime" : 125.284
+}
+
 ```
 
 ## Contact and License
