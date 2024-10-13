@@ -1975,7 +1975,7 @@ for(String sentence : allSentences) {
             for (String refText : ref.keySet()) {
                 Triple<OffsetPosition, String, String> infos = ref.get(refText);
 
-                String target = infos.getRight();
+                String target = infos.getMiddle();
                 OffsetPosition position = infos.getLeft();
 
                 Pair<String, org.w3c.dom.Node> referenceInformation = referenceMap.get(target);
