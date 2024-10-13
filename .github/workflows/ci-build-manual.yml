@@ -1,8 +1,13 @@
 name: Build and push a development version on docker 
 
-on: 
-  workflow_dispatch: 
-    
+on:
+  workflow_dispatch:
+    inputs:
+      custom_tag:
+        type: string
+        description: Docker image tag
+        required: true
+        default: "latest-develop"
 
 jobs:
   build:
@@ -25,8 +30,25 @@ jobs:
 
     steps:
       - name: Create more disk space
-        run: sudo rm -rf /usr/share/dotnet && sudo rm -rf /opt/ghc && sudo rm -rf "/usr/local/share/boost" && sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-      - uses: actions/checkout@v2
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /opt/hostedtoolcache
+          sudo rm -rf /opt/google/chrome 
+          sudo rm -rf /opt/microsoft/msedge 
+          sudo rm -rf /opt/microsoft/powershell 
+          sudo rm -rf /opt/pipx 
+          sudo rm -rf /usr/lib/mono 
+          sudo rm -rf /usr/local/julia* 
+          sudo rm -rf /usr/local/lib/android 
+          sudo rm -rf /usr/local/lib/node_modules 
+          sudo rm -rf /usr/local/share/chromium 
+          sudo rm -rf /usr/local/share/powershell 
+          sudo rm -rf /usr/share/dotnet 
+          sudo rm -rf /usr/share/swift
+      - uses: actions/checkout@v4
       - name: Build and push
         id: docker_build
         uses: mr-smithers-excellent/docker-build-push@v6
@@ -37,6 +59,7 @@ jobs:
           image: lfoppiano/datastet
           registry: docker.io
           pushImage: true
-          tags: latest-develop
+          tags:  |
+            latest-develop, ${{ github.event.inputs.custom_tag}}
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
