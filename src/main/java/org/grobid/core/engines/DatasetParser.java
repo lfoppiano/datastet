@@ -1590,7 +1590,7 @@ for(String sentence : allSentences) {
         //Extract relevant section from the TEI
         // Title, abstract, keywords
 
-        // If we process the TEI, at this point the document should be already segmented correctly.
+        // TODO: remove this If we process the TEI, at this point the document should be already segmented correctly.
         boolean extractParagraphs = false;
 
         XPath xPath = XPathFactory.newInstance().newXPath();
@@ -1770,6 +1770,9 @@ for(String sentence : allSentences) {
                         localSequence.setRelevantSectionsNamedDatasets(true);
                         localSequence.setRelevantSectionsImplicitDatasets(false);
                     }
+
+                    Map<String, Triple<OffsetPosition, String, String>> referencesInText = XMLUtilities.getTextNoRefMarkersAndMarkerPositions((org.w3c.dom.Element) paragraphAnnex, 0).getRight();
+                    localSequence.setReferences(referencesInText);
                 }
             }
 
@@ -1803,6 +1806,9 @@ for(String sentence : allSentences) {
                     localSequence.setRelevantSectionsImplicitDatasets(true);
                     selectedSequences.add(localSequence);
                     availabilitySequences.add(localSequence);
+
+                    Map<String, Triple<OffsetPosition, String, String>> referencesInText = XMLUtilities.getTextNoRefMarkersAndMarkerPositions((org.w3c.dom.Element) item, 0).getRight();
+                    localSequence.setReferences(referencesInText);
                 }
 
             } catch (XPathExpressionException e) {
@@ -1854,6 +1860,9 @@ for(String sentence : allSentences) {
                         localSequence.setRelevantSectionsNamedDatasets(true);
                         localSequence.setRelevantSectionsImplicitDatasets(false);
                     }
+
+                    Map<String, Triple<OffsetPosition, String, String>> referencesInText = XMLUtilities.getTextNoRefMarkersAndMarkerPositions((org.w3c.dom.Element) paragraphAnnex, 0).getRight();
+                    localSequence.setReferences(referencesInText);
                 }
             }
 
@@ -1881,6 +1890,9 @@ for(String sentence : allSentences) {
                 localSequence.setRelevantSectionsImplicitDatasets(true);
                 selectedSequences.add(localSequence);
                 availabilitySequences.add(localSequence);
+
+                Map<String, Triple<OffsetPosition, String, String>> referencesInText = XMLUtilities.getTextNoRefMarkersAndMarkerPositions((org.w3c.dom.Element) item, 0).getRight();
+                localSequence.setReferences(referencesInText);
             }
 
         } catch (XPathExpressionException e) {
@@ -1911,6 +1923,9 @@ for(String sentence : allSentences) {
                 localSequence.setRelevantSectionsImplicitDatasets(false);
                 selectedSequences.add(localSequence);
                 availabilitySequences.add(localSequence);
+
+                Map<String, Triple<OffsetPosition, String, String>> referencesInText = XMLUtilities.getTextNoRefMarkersAndMarkerPositions((org.w3c.dom.Element) item, 0).getRight();
+                localSequence.setReferences(referencesInText);
             }
 
         } catch (XPathExpressionException e) {
