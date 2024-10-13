@@ -1873,7 +1873,9 @@ for(String sentence : allSentences) {
 
 
         try {
-            String expression = "//*[local-name() = 'text']/*[local-name() = 'back']/*[local-name() = 'div'][not(@type) or not(contains('" + String.join("|", specificSectionTypesAnnex) + "', concat('|', @type, '|')))]/*[local-name()='div']/*[local-name() = 'p']";
+//            String expression = "//*[local-name() = 'text']/*[local-name() = 'back']/*[local-name() = 'div'][not(@type) or (not(contains(@type, 'availability')) and not(contains(@type, 'acknowledgement')) and not(contains(@type, 'funding')))]/*[local-name()='div']/*[local-name() = 'p']";
+
+            String expression = "//*[local-name() = 'text']/*[local-name() = 'back']/*[local-name() = 'div'][not(@type) or (" + String.join(" and ", specificSectionTypesAnnex.stream().map(type-> "not(contains(@type, '"+type+"'))").collect(Collectors.joining())) + ")]/*[local-name()='div']/*[local-name() = 'p']";
             expression = extractParagraphs ? expression : expression + "/*[local-name() = 's']";
             org.w3c.dom.NodeList annexNodeList = (org.w3c.dom.NodeList) xPath.evaluate(expression,
                     doc,
