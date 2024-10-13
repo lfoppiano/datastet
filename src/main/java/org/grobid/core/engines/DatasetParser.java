@@ -952,8 +952,8 @@ System.out.println(localDatasetcomponent.toJson());
                 if (availabilityTokens != null) {            // we attach and match bibliographical reference callout
                     TEIFormatter formatter = new TEIFormatter(doc, parsers.getFullTextParser());
                     // second pass, body
-                    if ((bodyClusters != null) && (resCitations != null) && (resCitations.size() > 0)) {
-                        List<BiblioComponent> bibRefComponents = new ArrayList<BiblioComponent>();
+                    if (bodyClusters != null && CollectionUtils.isNotEmpty(resCitations)) {
+                        List<BiblioComponent> bibRefComponents = new ArrayList<>();
                         for (TaggingTokenCluster cluster : bodyClusters) {
                             if (cluster == null) {
                                 continue;
@@ -1873,8 +1873,6 @@ for(String sentence : allSentences) {
 
 
         try {
-//            String expression = "//*[local-name() = 'text']/*[local-name() = 'back']/*[local-name() = 'div'][not(@type) or (not(contains(@type, 'availability')) and not(contains(@type, 'acknowledgement')) and not(contains(@type, 'funding')))]/*[local-name()='div']/*[local-name() = 'p']";
-
             String expression = "//*[local-name() = 'text']/*[local-name() = 'back']/*[local-name() = 'div'][not(@type) or (" + String.join(" and ", specificSectionTypesAnnex.stream().map(type-> "not(contains(@type, '"+type+"'))").collect(Collectors.joining())) + ")]/*[local-name()='div']/*[local-name() = 'p']";
             expression = extractParagraphs ? expression : expression + "/*[local-name() = 's']";
             org.w3c.dom.NodeList annexNodeList = (org.w3c.dom.NodeList) xPath.evaluate(expression,
