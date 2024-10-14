@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.io.JsonStringEncoder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.grobid.core.data.BibDataSet;
@@ -338,7 +339,7 @@ public class DatastetProcessFile {
                 json.append(", \"md5\": \"" + md5Str + "\"");
                 json.append(", \"mentions\":[");
 
-                if (extractedEntities != null && extractedEntities.size()>0) {
+                if (CollectionUtils.isNotEmpty(extractedEntities)) {
                     boolean startList = true;
                     for(List<Dataset> results : extractedEntities) {
                         for(Dataset dataset : results) {
@@ -353,12 +354,12 @@ public class DatastetProcessFile {
 
                 json.append("], \"references\":[");
 
-//                if (extractionResult != null) {
-//                    List<BibDataSet> bibDataSet = extractionResult.getRight();
-//                    if (bibDataSet != null && bibDataSet.size()>0) {
-//                        DatastetServiceUtils.serializeReferences(json, bibDataSet, extractedEntities);
-//                    }
-//                }
+                if (CollectionUtils.isNotEmpty(extractedEntities)) {
+                    List<BibDataSet> bibDataSet = extractionResult.getRight();
+                    if (CollectionUtils.isNotEmpty(bibDataSet)) {
+                        DatastetServiceUtils.serializeReferences(json, bibDataSet, extractedEntities);
+                    }
+                }
 
                 json.append("]");
 
@@ -442,7 +443,7 @@ public class DatastetProcessFile {
                 String md5Str = DatatypeConverter.printHexBinary(digest).toUpperCase();
                 json.append(", \"md5\": \"" + md5Str + "\"");
                 json.append(", \"mentions\":[");
-                if (extractedEntities != null && extractedEntities.size()>0) {
+                if (CollectionUtils.isNotEmpty(extractedEntities)) {
                     boolean startList = true;
                     for(List<Dataset> results : extractedEntities) {
                         for(Dataset dataset : results) {
@@ -454,14 +455,15 @@ public class DatastetProcessFile {
                         }
                     }
                 }
-                json.append("], \"references\":[]");
+                json.append("], \"references\":[");
 
-//                if (extractionResult != null) {
-//                    List<BibDataSet> bibDataSet = extractionResult.getRight();
-//                    if (bibDataSet != null && bibDataSet.size()>0) {
-//                        DatastetServiceUtils.serializeReferences(json, bibDataSet, extractedEntities);
-//                    }
-//                }
+                if (CollectionUtils.isNotEmpty(extractedEntities)) {
+                    List<BibDataSet> bibDataSet = extractionResult.getRight();
+                    if (CollectionUtils.isNotEmpty(bibDataSet)) {
+                        DatastetServiceUtils.serializeReferences(json, bibDataSet, extractedEntities);
+                    }
+                }
+                json.append("]");
                 
                 float runtime = ((float)(end-start)/1000);
                 json.append(", \"runtime\": "+ runtime);

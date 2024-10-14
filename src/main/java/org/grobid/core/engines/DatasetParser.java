@@ -1690,8 +1690,7 @@ for(String sentence : allSentences) {
                 localSequence.setRelevantSectionsImplicitDatasets(true);
                 selectedSequences.add(localSequence);
 
-                // Capture URLs if available
-
+                // Capture URLs and references if available
                 Map<String, Triple<OffsetPosition, String, String>> referencesInText = XMLUtilities.getTextNoRefMarkersAndMarkerPositions((org.w3c.dom.Element) item, 0).getRight();
                 localSequence.setReferences(referencesInText);
             }
@@ -1873,7 +1872,7 @@ for(String sentence : allSentences) {
 
 
         try {
-            String expression = "//*[local-name() = 'text']/*[local-name() = 'back']/*[local-name() = 'div'][not(@type) or (" + String.join(" and ", specificSectionTypesAnnex.stream().map(type-> "not(contains(@type, '"+type+"'))").collect(Collectors.joining())) + ")]/*[local-name()='div']/*[local-name() = 'p']";
+            String expression = "//*[local-name() = 'text']/*[local-name() = 'back']/*[local-name() = 'div'][not(@type) or (" + String.join(" and ", specificSectionTypesAnnex.stream().map(type -> "not(contains(@type, '" + type + "'))").collect(Collectors.joining())) + ")]/*[local-name()='div']/*[local-name() = 'p']";
             expression = extractParagraphs ? expression : expression + "/*[local-name() = 's']";
             org.w3c.dom.NodeList annexNodeList = (org.w3c.dom.NodeList) xPath.evaluate(expression,
                     doc,
@@ -1981,6 +1980,8 @@ for(String sentence : allSentences) {
                 Pair<String, org.w3c.dom.Node> referenceInformation = referenceMap.get(target);
                 if (referenceInformation != null) {
                     BiblioItem biblioItem = XMLUtilities.parseTEIBiblioItem((org.w3c.dom.Element) referenceInformation.getRight());
+                    refText = refText.replaceAll("[\\[\\], ]+", "");
+
                     biblioRefMap.put(refText, biblioItem);
                     BiblioComponent biblioComponent = new BiblioComponent(biblioItem, Integer.parseInt(target.replace("b", "")));
                     biblioComponent.setRawForm(refText);
@@ -1999,8 +2000,6 @@ for(String sentence : allSentences) {
 
         List<LayoutToken> allDocumentTokens = new ArrayList<>();
 
-        int startingOffset = 0;
-        List<Integer> sentenceOffsetStarts = new ArrayList<>();
         for (DatasetDocumentSequence sequence : selectedSequences) {
             List<LayoutToken> sentenceTokens = datastetAnalyzer.tokenizeWithLayoutToken(sequence.getText());
             sequence.setTokens(sentenceTokens);
@@ -2028,34 +2027,21 @@ for(String sentence : allSentences) {
 //                        }
 //                    });
 //
-            int finalStartingOffset = startingOffset;
-            List<LayoutToken> sentenceTokenAllTokens = sentenceTokens.stream()
-                    .map(lt -> {
-                        lt.setOffset(lt.getOffset() + finalStartingOffset);
-                        return lt;
-                    })
-                    .collect(Collectors.toList());
+//            int finalStartingOffset = startingOffset;
+//            List<LayoutToken> sentenceTokenAllTokens = sentenceTokens.stream()
+//                    .map(lt -> {
+//                        lt.setOffset(lt.getOffset() + finalStartingOffset);
+//                        return lt;
+//                    })
+//                    .collect(Collectors.toList());
 
-            allDocumentTokens.addAll(sentenceTokenAllTokens);
-            sentenceOffsetStarts.add(startingOffset);
-            startingOffset += sequence.getText().length();
+            allDocumentTokens.addAll(sentenceTokens);
         }
 
-        List<List<Dataset>> datasetLists = processing(selectedSequences, false);
+        List<List<Dataset>> datasetLists = processing(selectedSequences, disambiguate);
 
         entities.addAll(datasetLists);
 
-        for (int i = 0; i < entities.size(); i++) {
-            List<Dataset> datasets = entities.get(i);
-            if (datasets == null) {
-                continue;
-            }
-            for (Dataset dataset : datasets) {
-                if (dataset == null)
-                    continue;
-                dataset.setGlobalContextOffset(sentenceOffsetStarts.get(i));
-            }
-        }
 
         // TODO make sure that selectedSequences == allSentences above in the processPDF?
         List<String> allSentences = selectedSequences.stream().map(DatasetDocumentSequence::getText).toList();
@@ -2101,7 +2087,8 @@ for(String sentence : allSentences) {
                     termPattern,
                     placeTaken.get(i),
                     frequencies,
-                    sentenceOffsetStarts.get(i)
+                    0
+//                    sentenceOffsetStarts.get(i)
             );
             if (localEntities != null) {
                 Collections.sort(localEntities);
@@ -2154,7 +2141,7 @@ for(String sentence : allSentences) {
         // Enhance information in dataset entities
         if (CollectionUtils.isNotEmpty(bibRefComponents)) {
             // attach references to dataset entities
-            entities = attachRefBib(entities, bibRefComponents);
+            entities = attachRefBibSimple(entities, bibRefComponents);
         }
 
         // consolidate the attached ref bib (we don't consolidate all bibliographical references
@@ -2168,7 +2155,7 @@ for(String sentence : allSentences) {
                     for (BiblioComponent bibRef : bibRefs) {
                         Integer refKeyVal = bibRef.getRefKey();
                         if (!consolidated.contains(refKeyVal)) {
-                            BiblioItem biblioItem = biblioRefMap.get(refKeyVal);
+                            BiblioItem biblioItem = biblioRefMap.get(String.valueOf(refKeyVal));
                             BibDataSet biblioDataSet = new BibDataSet();
                             biblioDataSet.setResBib(biblioItem);
                             citationsToConsolidate.add(biblioDataSet);
@@ -2179,19 +2166,21 @@ for(String sentence : allSentences) {
             }
         }
 
-        try {
-            Consolidation consolidator = Consolidation.getInstance();
-            Map<Integer, BiblioItem> resConsolidation = consolidator.consolidate(citationsToConsolidate);
-            for (int j = 0; j < citationsToConsolidate.size(); j++) {
-                BiblioItem resCitation = citationsToConsolidate.get(j).getResBib();
-                BiblioItem bibo = resConsolidation.get(j);
-                if (bibo != null) {
-                    BiblioItem.correct(resCitation, bibo);
+        if (StringUtils.isNotBlank(datastetConfiguration.getGluttonHost())) {
+            try {
+                Consolidation consolidator = Consolidation.getInstance();
+                Map<Integer, BiblioItem> resConsolidation = consolidator.consolidate(citationsToConsolidate);
+                for (int j = 0; j < citationsToConsolidate.size(); j++) {
+                    BiblioItem resCitation = citationsToConsolidate.get(j).getResBib();
+                    BiblioItem bibo = resConsolidation.get(j);
+                    if (bibo != null) {
+                        BiblioItem.correct(resCitation, bibo);
+                    }
                 }
+            } catch (Exception e) {
+                throw new GrobidException(
+                        "An exception occurred while running consolidation on bibliographical references.", e);
             }
-        } catch (Exception e) {
-            throw new GrobidException(
-                    "An exception occured while running consolidation on bibliographical references.", e);
         }
 
         // propagate the bib. ref. to the entities corresponding to the same dataset name without bib. ref.
@@ -2230,8 +2219,7 @@ for(String sentence : allSentences) {
         entities = DatasetContextClassifier.getInstance(datastetConfiguration)
                 .classifyDocumentContexts(entities);
 
-        List<BibDataSet> resCitations = List.of();
-        return Pair.of(entities, resCitations);
+        return Pair.of(entities, citationsToConsolidate);
     }
 
     private static String normalize(String text) {
@@ -2355,10 +2343,11 @@ for(String sentence : allSentences) {
         return false;
     }
 
-    /**
-     * Try to attach relevant bib ref component to dataset entities
-     */
     public List<List<Dataset>> attachRefBib(List<List<Dataset>> entities, List<BiblioComponent> refBibComponents) {
+        return attachRefBib(entities, refBibComponents, 5);
+    }
+
+    public List<List<Dataset>> attachRefBib(List<List<Dataset>> entities, List<BiblioComponent> refBibComponents, int distance) {
 
         // we anchor the process to the dataset names and aggregate other closest components on the right
         // if we cross a bib ref component we attach it, if a bib ref component is just after the last 
@@ -2387,10 +2376,46 @@ for(String sentence : allSentences) {
                 for (BiblioComponent refBib : refBibComponents) {
                     //System.out.println(refBib.getOffsetStart() + " - " + refBib.getOffsetStart());
                     if ((refBib.getOffsetStart() >= pos) &&
-                            (refBib.getOffsetStart() <= endPos + 5)) {
+                            (refBib.getOffsetStart() <= endPos + distance)) {
                         entity.addBibRef(refBib);
                         endPos = refBib.getOffsetEnd();
                     }
+                }
+            }
+        }
+
+        return entities;
+    }
+
+    /**
+     * Try to attach relevant bib ref component to dataset entities, this does not use the global offset as in the
+     * TEI all references' offsets are local to the sentence
+     */
+    public List<List<Dataset>> attachRefBibSimple(List<List<Dataset>> entities, List<BiblioComponent> refBibComponents) {
+        return attachRefBib(entities, refBibComponents, 5);
+    }
+
+    public List<List<Dataset>> attachRefBibSimple(List<List<Dataset>> entities, List<BiblioComponent> refBibComponents, int distance) {
+
+        // we anchor the process to the dataset names and aggregate other closest components on the right
+        // if we cross a bib ref component we attach it, if a bib ref component is just after the last
+        // component of the entity group, we attach it
+        for (List<Dataset> datasets : entities) {
+            for (Dataset entity : datasets) {
+                if (entity.getDatasetName() == null)
+                    continue;
+
+                // find the name component and the offset
+                DatasetComponent nameComponent = entity.getDatasetName();
+                int pos = nameComponent.getOffsetEnd();
+
+                // find included or just next bib ref callout
+                List<BiblioComponent> relatedReferences = refBibComponents.stream()
+                        .filter(ref -> ref.getOffsetStart() >= pos && ref.getOffsetEnd() <= pos + distance)
+                        .collect(Collectors.toList());
+
+                if (CollectionUtils.isNotEmpty(relatedReferences)) {
+                    entity.setBibRefs(relatedReferences);
                 }
             }
         }
@@ -2690,7 +2715,7 @@ for(String sentence : allSentences) {
                 entity.getSequenceIdentifiers().addAll(name.getSequenceIdentifiers());
                 //entity.setType(DatastetLexicon.Dataset_Type.DATASET);
                 entity.setPropagated(true);
-                entity.setGlobalContextOffset(sentenceOffsetStart);
+//                entity.setGlobalContextOffset(sentenceOffsetStart);
                 if (entities == null)
                     entities = new ArrayList<>();
                 entities.add(entity);

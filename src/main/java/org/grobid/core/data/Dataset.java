@@ -279,7 +279,7 @@ public class Dataset extends KnowledgeEntity implements Comparable<Dataset> {
 
     public void addBibRef(BiblioComponent bibRef) {
         if (bibRefs == null) {
-            bibRefs = new ArrayList<BiblioComponent>();
+            bibRefs = new ArrayList<>();
         }
         bibRefs.add(bibRef);
     }
