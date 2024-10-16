@@ -32,7 +32,7 @@ public class DatastetController implements DatastetPaths {
     private static final String PDF = "pdf";
     private static final String INPUT = "input";
     private static final String JSON = "json";
-    private static final String DISAMBIGUATE = "addParagraphContext";
+    private static final String DISAMBIGUATE = "disambiguate";
     private static final String SEGMENT_SENTENCES = "segmentSentences";
 
     private DatastetConfiguration configuration;
@@ -144,9 +144,9 @@ public class DatastetController implements DatastetPaths {
     @Produces(MediaType.APPLICATION_JSON)
     @POST
     public Response processJATS(@FormDataParam(INPUT) InputStream inputStream,
-                                @DefaultValue("0") @FormDataParam(DISAMBIGUATE) String addParagraphContext) {
-        boolean addParagraphContextBoolean = DatastetServiceUtils.validateBooleanRawParam(addParagraphContext);
-        return DatastetProcessFile.processDatasetJATS(inputStream, addParagraphContextBoolean);
+                                @DefaultValue("0") @FormDataParam(DISAMBIGUATE) String disambiguate) {
+        boolean disambiguateBoolean = DatastetServiceUtils.validateBooleanRawParam(disambiguate);
+        return DatastetProcessFile.processDatasetJATS(inputStream, disambiguateBoolean);
     }
 
     @Path(PATH_DATASEER_TEI)
