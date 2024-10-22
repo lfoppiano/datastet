@@ -873,7 +873,7 @@ System.out.println(localDatasetcomponent.toJson());
                         String clusterText = LayoutTokensUtil.toText(cluster.concatTokens());
 
                         List<LayoutToken> localTokenization = cluster.concatTokens();
-                        if (CollectionUtils.isNotEmpty(localTokenization))
+                        if (CollectionUtils.isEmpty(localTokenization))
                             continue;
 
                         if (TEIFormatter.MARKER_LABELS.contains(clusterLabel)) {

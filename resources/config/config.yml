@@ -9,7 +9,7 @@ tmpPath: "tmp/"
 # path to Pub2TEI repository as available at https://github.com/kermitt2/Pub2TEI
 pub2teiPath: "../../Pub2TEI/"
 
-gluttonHost: "https://cloud.science-miner.com/glutton"
+gluttonHost:
 gluttonPort: 
 
 # entity-fishing server information for performing entity disambiguation
@@ -36,7 +36,7 @@ models:
       window: 20
       nbMaxIterations: 2000
 
-  # classifier model, dataset binary (datset or not dataset in the current sentence)
+  # classifier model, dataset binary (dataset or not dataset in the current sentence)
   - name: "dataseer-binary"
     engine: "delft"
     delft:
