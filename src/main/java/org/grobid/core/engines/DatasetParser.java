@@ -1958,16 +1958,25 @@ for(String sentence : allSentences) {
 
 
         // We need to link the references and their callout
-        List<BiblioComponent> bibRefComponents = new ArrayList<>();
+        List<List<BiblioComponent>> referencesAsBiblioComponentSequences = new ArrayList<>();
         Map<String, BiblioItem> biblioRefMap = new HashMap<>();
 
-        List<Map<String, Triple<OffsetPosition, String, String>>> referencesList = selectedSequences.stream()
-                .map(DatasetDocumentSequence::getReferences)
-                .filter(map -> map.values().stream()
-                        .anyMatch(triple -> triple.getRight().equals(BIBLIO_CALLOUT_TYPE)))
-                .toList();
+        List<Map<String, Triple<OffsetPosition, String, String>>> referencesInSequences = selectedSequences.stream()
+                .map(sequence -> sequence.getReferences().entrySet().stream()
+                        .filter(entry -> BIBLIO_CALLOUT_TYPE.equals(entry.getValue().getRight()))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
+                .collect(Collectors.toList());
 
-        for (Map<String, Triple<OffsetPosition, String, String>> ref : referencesList) {
+//        List<Map<String, Triple<OffsetPosition, String, String>>> referencesList = selectedSequences.stream()
+//                .map(DatasetDocumentSequence::getReferences)
+//                .filter(map -> map.values().stream()
+//                        .anyMatch(triple -> triple.getRight().equals(BIBLIO_CALLOUT_TYPE)))
+//                .toList();
+
+        // We iterate over the sequences, and transform each reference into a BiblioComponent
+        for (Map<String, Triple<OffsetPosition, String, String>> ref : referencesInSequences) {
+            List<BiblioComponent> referencesInSequence = new ArrayList<>();
+
             for (String refText : ref.keySet()) {
                 Triple<OffsetPosition, String, String> infos = ref.get(refText);
 
@@ -1977,19 +1986,22 @@ for(String sentence : allSentences) {
                 Pair<String, org.w3c.dom.Node> referenceInformation = referenceMap.get(target);
                 if (referenceInformation != null) {
                     BiblioItem biblioItem = XMLUtilities.parseTEIBiblioItem((org.w3c.dom.Element) referenceInformation.getRight());
-                    refText = refText.replaceAll("[\\[\\], ]+", "");
+                    String refTextClean = refText.replaceAll("[\\[\\], ]+", "");
 
-                    biblioRefMap.put(refText, biblioItem);
-                    BiblioComponent biblioComponent = new BiblioComponent(biblioItem, Integer.parseInt(target.replace("b", "")));
+                    biblioRefMap.put(refTextClean, biblioItem);
+                    BiblioComponent biblioComponent = new BiblioComponent(
+                            biblioItem, Integer.parseInt(target.replace("b", ""))
+                    );
                     biblioComponent.setRawForm(refText);
                     biblioComponent.setOffsetStart(position.start);
                     biblioComponent.setOffsetEnd(position.end);
                     // TODO: fetch the coords if they are in the TEI
 //                    List<BoundingBox> boundingBoxes = BoundingBoxCalculator.calculate(refTokens);
 //                    biblioComponent.setBoundingBoxes(boundingBoxes);
-                    bibRefComponents.add(biblioComponent);
+                    referencesInSequence.add(biblioComponent);
                 }
             }
+            referencesAsBiblioComponentSequences.add(referencesInSequence);
         }
 
         // Dataset Recognition
@@ -2136,9 +2148,9 @@ for(String sentence : allSentences) {
 
 
         // Enhance information in dataset entities
-        if (CollectionUtils.isNotEmpty(bibRefComponents)) {
+        if (CollectionUtils.isNotEmpty(referencesAsBiblioComponentSequences)) {
             // attach references to dataset entities
-            entities = attachRefBibSimple(entities, bibRefComponents);
+            entities = attachRefBibSimple(entities, referencesAsBiblioComponentSequences);
         }
 
         // consolidate the attached ref bib (we don't consolidate all bibliographical references
@@ -2388,36 +2400,39 @@ for(String sentence : allSentences) {
      * Try to attach relevant bib ref component to dataset entities, this does not use the global offset as in the
      * TEI all references' offsets are local to the sentence
      */
-    public List<List<Dataset>> attachRefBibSimple(List<List<Dataset>> entities, List<BiblioComponent> refBibComponents) {
-        return attachRefBib(entities, refBibComponents, 5);
+    public List<List<Dataset>> attachRefBibSimple(List<List<Dataset>> entities, List<List<BiblioComponent>> refBibComponents) {
+        return attachRefBibSimple(entities, refBibComponents, 5);
     }
 
-    public List<List<Dataset>> attachRefBibSimple(List<List<Dataset>> entities, List<BiblioComponent> refBibComponents, int distance) {
+    public List<List<Dataset>> attachRefBibSimple(List<List<Dataset>> datasetsSequences, List<List<BiblioComponent>> referencesSequences, int distance) {
 
         // we anchor the process to the dataset names and aggregate other closest components on the right
         // if we cross a bib ref component we attach it, if a bib ref component is just after the last
         // component of the entity group, we attach it
-        for (List<Dataset> datasets : entities) {
-            for (Dataset entity : datasets) {
-                if (entity.getDatasetName() == null)
+        for (int seqIdx = 0; seqIdx < datasetsSequences.size(); seqIdx++) {
+            List<Dataset> datasets = datasetsSequences.get(seqIdx);
+            List<BiblioComponent> references = referencesSequences.get(seqIdx);
+
+            for (Dataset dataset : datasets) {
+                if (dataset.getDatasetName() == null)
                     continue;
 
                 // find the name component and the offset
-                DatasetComponent nameComponent = entity.getDatasetName();
-                int pos = nameComponent.getOffsetEnd();
+                DatasetComponent nameComponent = dataset.getDatasetName();
+                int datasetEndPosition = nameComponent.getOffsetEnd();
 
-                // find included or just next bib ref callout
-                List<BiblioComponent> relatedReferences = refBibComponents.stream()
-                        .filter(ref -> ref.getOffsetStart() >= pos && ref.getOffsetEnd() <= pos + distance)
+                // find included or just next bib ref callout within a distance of 5 characters
+                List<BiblioComponent> relatedReferences = references.stream()
+                        .filter(ref -> ref.getOffsetStart() >= datasetEndPosition && ref.getOffsetStart() <= datasetEndPosition + distance)
                         .collect(Collectors.toList());
 
                 if (CollectionUtils.isNotEmpty(relatedReferences)) {
-                    entity.setBibRefs(relatedReferences);
+                    dataset.setBibRefs(relatedReferences);
                 }
             }
         }
 
-        return entities;
+        return datasetsSequences;
     }
 
     public List<List<OffsetPosition>> preparePlaceTaken(List<List<Dataset>> entities) {
