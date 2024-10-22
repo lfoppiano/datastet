@@ -121,8 +121,6 @@ models:
       transformer: "michiyasunaga/LinkBERT-basecased"
 
 
-  modelPreload: true
-
 # Limit the maximum number of requests (0, no limit)
 maxParallelRequests: 0
 
