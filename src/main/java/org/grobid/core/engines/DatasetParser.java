@@ -234,17 +234,17 @@ System.out.println(localDatasetcomponent.toJson());
                 for (Dataset entity : localDatasets) {
                     if (entity.getDatasetName() != null) {
                         String term = entity.getDatasetName().getNormalizedForm();
-                        if (term == null || term.length() == 0) {
-                            indexToBeFiltered.add(Integer.valueOf(k));
+                        if (StringUtils.isBlank(term)) {
+                            indexToBeFiltered.add(k);
                         } else if (DatastetLexicon.getInstance().isEnglishStopword(term)) {
-                            indexToBeFiltered.add(Integer.valueOf(k));
+                            indexToBeFiltered.add(k);
                         } else if (DatastetLexicon.getInstance().isBlackListedNamedDataset(term.toLowerCase())) {
-                            indexToBeFiltered.add(Integer.valueOf(k));
+                            indexToBeFiltered.add(k);
                         }
                     }
                     k++;
                 }
-                if (indexToBeFiltered.size() > 0) {
+                if (CollectionUtils.isNotEmpty(indexToBeFiltered)) {
                     for (int j = indexToBeFiltered.size() - 1; j >= 0; j--) {
                         localDatasets.remove(indexToBeFiltered.get(j).intValue());
                     }
@@ -1589,7 +1589,8 @@ for(String sentence : allSentences) {
         XPath xPath = XPathFactory.newInstance().newXPath();
 
         try {
-            org.w3c.dom.Node titleNode = (org.w3c.dom.Node) xPath.evaluate("//*[local-name() = 'titleStmt']/*[local-name() = 'title']",
+            org.w3c.dom.Node titleNode = (org.w3c.dom.Node) xPath.evaluate(
+                    "//*[local-name() = 'titleStmt']/*[local-name() = 'title']",
                     doc,
                     XPathConstants.NODE);
             if (titleNode == null) {
@@ -1722,7 +1723,8 @@ for(String sentence : allSentences) {
         // Annex might contain misclassified relevant sections
         try {
             String expression = "//*[local-name() = 'text']/*[local-name() = 'back']/*[local-name() = 'div'][@*[local-name()='type' and .='annex']]/*[local-name() = 'div']";
-            org.w3c.dom.NodeList bodyNodeList = (org.w3c.dom.NodeList) xPath.evaluate(expression,
+            org.w3c.dom.NodeList bodyNodeList = (org.w3c.dom.NodeList) xPath.evaluate(
+                    expression,
                     doc,
                     XPathConstants.NODESET);
             for (int i = 0; i < bodyNodeList.getLength(); i++) {
@@ -1776,14 +1778,16 @@ for(String sentence : allSentences) {
         // specific section types statement
         DatastetAnalyzer datastetAnalyzer = DatastetAnalyzer.getInstance();
 
-        List<String> specificSectionTypesAnnex = Arrays.asList("availability", "acknowledgement", "funding");
+        // Looks like acknowledgment and funding may be misleading
+        List<String> specificSectionTypesAnnex = Arrays.asList("availability", "data-availability");
 
         List<DatasetDocumentSequence> availabilitySequences = new ArrayList<>();
         for (String sectionType : specificSectionTypesAnnex) {
             try {
                 String expression = "//*[local-name() = 'text']/*[local-name() = 'back']/*[local-name() = 'div'][@*[local-name()='type' and .='" + sectionType + "']]/*[local-name() = 'div']/*[local-name() = 'p']";
                 expression = extractParagraphs ? expression : expression + "/*[local-name() = 's']";
-                org.w3c.dom.NodeList annexNodeList = (org.w3c.dom.NodeList) xPath.evaluate(expression,
+                org.w3c.dom.NodeList annexNodeList = (org.w3c.dom.NodeList) xPath.evaluate(
+                        expression,
                         doc,
                         XPathConstants.NODESET);
                 for (int i = 0; i < annexNodeList.getLength(); i++) {
