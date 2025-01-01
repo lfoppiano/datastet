@@ -962,7 +962,7 @@ System.out.println(localDatasetcomponent.toJson());
                             TaggingLabel clusterLabel = cluster.getTaggingLabel();
 
                             List<LayoutToken> localTokenization = cluster.concatTokens();
-                            if ((localTokenization == null) || (localTokenization.size() == 0))
+                            if (CollectionUtils.isEmpty(localTokenization))
                                 continue;
 
                             if (clusterLabel.equals(TaggingLabels.CITATION_MARKER)) {
@@ -1937,7 +1937,10 @@ for(String sentence : allSentences) {
         }
 
         // Read and parse references
-        Map<String, Pair<String, org.w3c.dom.Node>> referenceMap = new HashMap<>();
+
+        BiblioComponentWrapper biblioComponentWrapper = new BiblioComponentWrapper();
+
+        Map<Integer, Pair<String, org.w3c.dom.Node>> referenceMap = new HashMap<>();
         try {
             String expression = "//*[local-name() = 'div'][@*[local-name()='type' and .='references']]/*[local-name() = 'listBibl']/*[local-name() = 'biblStruct']";
             org.w3c.dom.NodeList bodyNodeList = (org.w3c.dom.NodeList) xPath.evaluate(expression,
@@ -1953,7 +1956,7 @@ for(String sentence : allSentences) {
                             String referenceText = item.getTextContent();
                             String normalizedReferenceText = normalize(referenceText);
                             String cleanedRawReferenceText = normalizedReferenceText.replaceAll("\\p{Space}+", " ").strip().replaceAll("[ ]{2,}", ", ");
-                            referenceMap.put(attribute.getNodeValue(), Pair.of(cleanedRawReferenceText, item));
+                            referenceMap.put(biblioComponentWrapper.getRefKey(attribute.getNodeValue()), Pair.of(cleanedRawReferenceText, item));
                         }
                     }
                 }
@@ -1974,6 +1977,18 @@ for(String sentence : allSentences) {
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
                 .collect(Collectors.toList());
 
+//                List<Map<String, Triple<OffsetPosition, String, String>>> referencesInSequences = selectedSequences.stream()
+//                .map(sequence -> sequence.getReferences().entrySet().stream()
+//                        .filter(entry -> BIBLIO_CALLOUT_TYPE.equals(entry.getValue().getRight()))
+//                        .collect(
+//                                Collectors.toMap(
+//                                        entry -> String.valueOf(biblioComponentWrapper.getRefKey(entry.getValue().getMiddle())),
+//                                        Map.Entry::getValue
+//                                )
+//                        )
+//                )
+//                .collect(Collectors.toList());
+
 //        List<Map<String, Triple<OffsetPosition, String, String>>> referencesList = selectedSequences.stream()
 //                .map(DatasetDocumentSequence::getReferences)
 //                .filter(map -> map.values().stream()
@@ -1990,15 +2005,16 @@ for(String sentence : allSentences) {
                 String target = infos.getMiddle();
                 OffsetPosition position = infos.getLeft();
 
-                Pair<String, org.w3c.dom.Node> referenceInformation = referenceMap.get(target);
+                Pair<String, org.w3c.dom.Node> referenceInformation = referenceMap.get(biblioComponentWrapper.getRefKey(target));
                 if (referenceInformation != null) {
                     BiblioItem biblioItem = XMLUtilities.parseTEIBiblioItem((org.w3c.dom.Element) referenceInformation.getRight());
                     String refTextClean = refText.replaceAll("[\\[\\], ]+", "");
 
                     biblioRefMap.put(refTextClean, biblioItem);
-                    BiblioComponent biblioComponent = new BiblioComponent(
-                            biblioItem, Integer.parseInt(target.replace("b", ""))
-                    );
+
+                    Integer refKey = biblioComponentWrapper.getRefKey(target);
+
+                    BiblioComponent biblioComponent = new BiblioComponent(biblioItem, refKey);
                     biblioComponent.setRawForm(refText);
                     biblioComponent.setOffsetStart(position.start);
                     biblioComponent.setOffsetEnd(position.end);
@@ -2238,7 +2254,7 @@ for(String sentence : allSentences) {
         return Pair.of(entities, citationsToConsolidate);
     }
 
-    private static String normalize(String text) {
+    public static String normalize(String text) {
         String normalizedText = UnicodeUtil.normaliseText(text);
         normalizedText = normalizedText.replace("\n", " ");
         normalizedText = normalizedText.replace("\t", " ");

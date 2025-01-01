@@ -200,7 +200,22 @@ curl --form input=@./src/test/resources/PMC1636350.pdf --form disambiguate=1 loc
 
 For PDF, each entity will be associated with a list of bounding box coordinates relative to the PDF, see [here](https://grobid.readthedocs.io/en/latest/Coordinates-in-PDF/#coordinate-system-in-the-pdf) for more explanation about the coordinate system. 
 
-In addition, the response will contain the bibliographical reference information associated to a dataset mention when found. The bibliographical information are provided in XML TEI (similar format as GROBID). 
+In addition, the response will contain the bibliographical reference information associated to a dataset mention when found. 
+The bibliographical information are provided in XML TEI (similar format as GROBID).
+
+#### /service/annotateDatasetTEI
+
+This entry-point consumes the TEI-XML file from Grobid or pub2tei. 
+
+| method | request type          | response type      | parameters         | requirement | description                                                                                                                                         |
+|--------|-----------------------|--------------------|--------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| POST   | `multipart/form-data` | `application/json` | `input`            | required    | TEI file to be processed                                                                                                                            |
+|        |                       |                    | `segmentSentences` | optional    | Indicate whether to apply sentence segmentation. If the TEI was segmented before (by Grobid, for example) this should be set to '0'.                |
+
+[//]: # (|        |                       |                    | `disambiguate`     | optional    | `disambiguate` is a string of value `0` &#40;no disambiguation, default value&#41; or `1` &#40;disambiguate and inject Wikidata entity id and Wikipedia pageId&#41; |)
+
+
+Using ```curl``` POST request with a __TEI-XML file__:
 
 
 ## Contact and License
