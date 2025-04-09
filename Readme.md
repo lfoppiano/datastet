@@ -267,7 +267,6 @@ The output data format is JSON format as follows:
   "references" : [ ],
   "runtime" : 125.284
 }
-
 ```
 
 ## Contact and License
