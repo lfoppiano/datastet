@@ -29,7 +29,11 @@ For identifying mentions of software in scientific literature, an application wi
 See the following article for simple description of the approach, used training data, evaluations and how the tool is used in the [French Open Science Monitor]():
 
 ```
-Aricia Bassinet, Laetitia Bracco, Anne L'Hôte, Eric Jeangirard, Patrice Lopez, and Laurent Romary. "Large-scale Machine-Learning analysis of scientific PDF for monitoring the production and the openness of research data and software in France". 2023. [hal-04121339v3]. https://hal.science/hal-04121339v3
+Aricia Bassinet, Laetitia Bracco, Anne L'Hôte, Eric Jeangirard, Patrice Lopez, and 
+Laurent Romary. 
+"Large-scale Machine-Learning analysis of scientific PDF for monitoring the production 
+and the openness of research data and software in France". 2023. 
+[hal-04121339v3]. https://hal.science/hal-04121339v3
 ```
 
 ### Dataset identification and classification
