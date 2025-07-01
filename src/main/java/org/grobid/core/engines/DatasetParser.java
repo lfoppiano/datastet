@@ -41,6 +41,7 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.grobid.core.utilities.counters.impl.CntManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
@@ -1500,8 +1501,12 @@ for(String sentence : allSentences) {
             DocumentBuilder builder = factory.newDocumentBuilder();
             org.w3c.dom.Document document = builder.parse(file);
             org.w3c.dom.Element root = document.getDocumentElement();
-            if (segmentSentences)
+            boolean hasSegmentation = hasTEISentenceSegmentation(root);
+
+            if (!hasSegmentation) {
                 segment(document, root);
+            }
+
             resultExtraction = processTEIDocument(document, disambiguate);
             //tei = restoreDomParserAttributeBug(tei); 
 
@@ -1563,8 +1568,12 @@ for(String sentence : allSentences) {
             org.w3c.dom.Document document = builder.parse(new InputSource(new StringReader(documentAsString)));
             //document.getDocumentElement().normalize();
             org.w3c.dom.Element root = document.getDocumentElement();
-            if (segmentSentences)
+
+            boolean hasSegmentation = hasTEISentenceSegmentation(root);
+
+            if (!hasSegmentation) {
                 segment(document, root);
+            }
 
             tei = processTEIDocument(document, disambiguate);
         } catch (ParserConfigurationException | IOException | SAXException e) {

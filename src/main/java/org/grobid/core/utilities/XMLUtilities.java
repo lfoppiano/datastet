@@ -570,6 +570,51 @@ public class XMLUtilities {
         }
     }
 
+    public static boolean hasTEISentenceSegmentation(org.w3c.dom.Element root) {
+        // Check for <s> under <p> in <text>/<body> or <teiHeader>/<abstract>
+        // 1. Check <text>/<body>
+        NodeList textNodes = root.getElementsByTagName("text");
+        for (int i = 0; i < textNodes.getLength(); i++) {
+            Node textNode = textNodes.item(i);
+            NodeList bodyNodes = ((Element) textNode).getElementsByTagName("body");
+            for (int j = 0; j < bodyNodes.getLength(); j++) {
+                Node bodyNode = bodyNodes.item(j);
+                if (hasSunderP(bodyNode)) {
+                    LOGGER.info("The TEI document already contains sentence segmentation in <text>/<body>, skipping segmentation.");
+                    return true;
+                }
+            }
+        }
+        // 2. Check <teiHeader>/<abstract>
+        NodeList teiHeaderNodes = root.getElementsByTagName("teiHeader");
+        for (int i = 0; i < teiHeaderNodes.getLength(); i++) {
+            Node teiHeaderNode = teiHeaderNodes.item(i);
+            NodeList abstractNodes = ((Element) teiHeaderNode).getElementsByTagName("abstract");
+            for (int j = 0; j < abstractNodes.getLength(); j++) {
+                Node abstractNode = abstractNodes.item(j);
+                if (hasSunderP(abstractNode)) {
+                    LOGGER.info("The TEI document already contains sentence segmentation in <teiHeader>/<abstract>, skipping segmentation.");
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasSunderP(Node node) {
+        if (node.getNodeType() == Node.ELEMENT_NODE) {
+            NodeList pNodes = ((Element) node).getElementsByTagName("p");
+            for (int i = 0; i < pNodes.getLength(); i++) {
+                Node pNode = pNodes.item(i);
+                NodeList sNodes = ((Element) pNode).getElementsByTagName("s");
+                if (sNodes.getLength() > 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /**
      * Command line execution for cleaning the TEI training corpus.
      *
