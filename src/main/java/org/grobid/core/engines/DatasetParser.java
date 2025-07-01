@@ -1596,9 +1596,6 @@ for(String sentence : allSentences) {
         //Extract relevant section from the TEI
         // Title, abstract, keywords
 
-        // TODO: remove this If we process the TEI, at this point the document should be already segmented correctly.
-        boolean extractParagraphs = false;
-
         XPath xPath = XPathFactory.newInstance().newXPath();
 
         try {
@@ -1624,7 +1621,7 @@ for(String sentence : allSentences) {
         }
 
         try {
-            String expression = extractParagraphs ? "//abstract/div/p" : "//abstract/div/p/s";
+            String expression = "//abstract/div/p/s";
             String expressionNoNamespaces = getXPathWithoutNamespaces(expression);
             org.w3c.dom.NodeList abstractNodeList = (org.w3c.dom.NodeList) xPath.evaluate(expressionNoNamespaces,
                     doc,
@@ -1679,7 +1676,7 @@ for(String sentence : allSentences) {
 
         // Extraction from Body
         try {
-            String expression = extractParagraphs ? "//text/body//div/p" : "//text/body//div/p/s";
+            String expression = "//text/body//div/p/s";
             String expressionNoNamespaces = getXPathWithoutNamespaces(expression);
             org.w3c.dom.NodeList bodyNodeList = (org.w3c.dom.NodeList) xPath.evaluate(expressionNoNamespaces,
                     doc,
@@ -1758,7 +1755,7 @@ for(String sentence : allSentences) {
                         currentSection = null;
                     }
                 }
-                String granularity = extractParagraphs ? "p" : "s";
+                String granularity = "s";
                 org.w3c.dom.NodeList textsAnnex = (org.w3c.dom.NodeList) xPath.evaluate(".//*[local-name() = '" + granularity + "']", item, XPathConstants.NODESET);
                 for (int j = 0; j < textsAnnex.getLength(); j++) {
                     org.w3c.dom.Node paragraphAnnex = textsAnnex.item(j);
@@ -1798,7 +1795,7 @@ for(String sentence : allSentences) {
         for (String sectionType : specificSectionTypesAnnex) {
             try {
                 String expression = "//*[local-name() = 'text']/*[local-name() = 'back']/*[local-name() = 'div'][@*[local-name()='type' and .='" + sectionType + "']]/*[local-name() = 'div']/*[local-name() = 'p']";
-                expression = extractParagraphs ? expression : expression + "/*[local-name() = 's']";
+                expression = expression + "/*[local-name() = 's']";
                 org.w3c.dom.NodeList annexNodeList = (org.w3c.dom.NodeList) xPath.evaluate(
                         expression,
                         doc,
@@ -1850,7 +1847,7 @@ for(String sentence : allSentences) {
                         currentSection = null;
                     }
                 }
-                String granularity = extractParagraphs ? "p" : "s";
+                String granularity = "s";
                 org.w3c.dom.NodeList textGeneralSections = (org.w3c.dom.NodeList) xPath.evaluate(".//*[local-name() = '" + granularity + "']", item, XPathConstants.NODESET);
                 for (int j = 0; j < textGeneralSections.getLength(); j++) {
                     org.w3c.dom.Node paragraphAnnex = textGeneralSections.item(j);
@@ -1883,7 +1880,7 @@ for(String sentence : allSentences) {
 
         try {
             String expression = "//*[local-name() = 'text']/*[local-name() = 'back']/*[local-name() = 'div'][not(@type) or (" + String.join(" and ", specificSectionTypesAnnex.stream().map(type -> "not(contains(@type, '" + type + "'))").collect(Collectors.joining())) + ")]/*[local-name()='div']/*[local-name() = 'p']";
-            expression = extractParagraphs ? expression : expression + "/*[local-name() = 's']";
+            expression = expression + "/*[local-name() = 's']";
             org.w3c.dom.NodeList annexNodeList = (org.w3c.dom.NodeList) xPath.evaluate(expression,
                     doc,
                     XPathConstants.NODESET);
@@ -1913,7 +1910,7 @@ for(String sentence : allSentences) {
         //Footnotes
         try {
             String expression = "//*[local-name() = 'text']/*[local-name() = 'body']/*[local-name() = 'note'][@*[local-name()='place' and .='foot']]/*[local-name() = 'div']/*[local-name() = 'p']";
-            expression = extractParagraphs ? expression : expression + "/*[local-name() = 's']";
+            expression = expression + "/*[local-name() = 's']";
             org.w3c.dom.NodeList bodyNodeList = (org.w3c.dom.NodeList) xPath.evaluate(expression,
                     doc,
                     XPathConstants.NODESET);
