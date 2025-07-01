@@ -29,7 +29,7 @@ public class BiblioComponent extends DatasetComponent {
     // the full matched bibliographical reference record
     protected BiblioItem biblio = null;
 
-    // identifier for relating callout and reference, should be cconsistent with 
+    // identifier for relating callout and reference, should be consistent with
     // a full text TEI produced by GROBID
     protected int refKey = -1;
 

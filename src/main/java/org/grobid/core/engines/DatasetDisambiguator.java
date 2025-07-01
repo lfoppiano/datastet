@@ -1,71 +1,36 @@
 package org.grobid.core.engines;
 
-import nu.xom.Attribute;
-import nu.xom.Element;
+import com.fasterxml.jackson.core.io.JsonStringEncoder;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.FileUtils;
-import org.grobid.core.GrobidModels;
-import org.grobid.core.data.DatasetComponent;
-import org.grobid.core.data.Dataset;
-import org.grobid.core.data.BiblioItem;
-import org.grobid.core.document.Document;
-import org.grobid.core.document.DocumentPiece;
-import org.grobid.core.document.DocumentSource;
-import org.grobid.core.document.xml.XmlBuilderUtils;
-import org.grobid.core.engines.config.GrobidAnalysisConfig;
-import org.grobid.core.engines.label.DatasetTaggingLabels;
-import org.grobid.core.engines.label.SegmentationLabels;
-import org.grobid.core.engines.label.TaggingLabel;
-import org.grobid.core.engines.label.TaggingLabels;
-import org.grobid.core.exceptions.GrobidException;
-import org.grobid.core.factory.GrobidFactory;
-import org.grobid.core.features.FeaturesVectorDataseer;
-import org.grobid.core.layout.BoundingBox;
-import org.grobid.core.layout.LayoutToken;
-import org.grobid.core.layout.LayoutTokenization;
-import org.grobid.core.lexicon.DatastetLexicon;
-import org.grobid.core.utilities.DatastetConfiguration;
-import org.grobid.core.utilities.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.xml.sax.InputSource;
-
-import com.fasterxml.jackson.core.*;
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.node.*;
-import com.fasterxml.jackson.annotation.*;
-import com.fasterxml.jackson.core.io.*;
-
-import java.io.*;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.*;
-
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.HttpEntity;
-import org.apache.http.util.EntityUtils;
-import org.apache.http.entity.mime.content.StringBody;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
-import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.conn.HttpHostConnectException;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.entity.mime.content.StringBody;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.grobid.core.data.Dataset;
+import org.grobid.core.data.DatasetComponent;
+import org.grobid.core.layout.LayoutToken;
+import org.grobid.core.utilities.DatastetConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static org.apache.commons.lang3.StringUtils.*;
-import static org.grobid.core.document.xml.XmlBuilderUtils.teiElement;
+import java.io.File;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.*;
 
 /**
  * Dataset entity disambiguator. Once dataset mentions are recognized and grouped
@@ -104,7 +69,7 @@ public class DatasetDisambiguator {
             nerd_host = configuration.getEntityFishingHost();
             nerd_port = configuration.getEntityFishingPort();
             serverStatus = checkIfAlive();
-            if (serverStatus == true)
+            if (serverStatus)
                 ensureCustomizationReady();
         } catch(Exception e) {
             LOGGER.error("Cannot read properties for disambiguation service", e);
@@ -120,43 +85,45 @@ public class DatasetDisambiguator {
         boolean result = false;
         try {
             URL url = null;
-            if ( (nerd_port != null) && (nerd_port.length() > 0) )
-                if (nerd_port.equals("443"))
+            if (StringUtils.isNotBlank(nerd_port)) {
+                if (nerd_port.equals("443")) {
                     url = new URL("https://" + nerd_host + "/service/isalive");
-                else
+                } else {
                     url = new URL("http://" + nerd_host + ":" + nerd_port + "/service/isalive");
-            else
+                }
+            } else
                 url = new URL("http://" + nerd_host + "/service/isalive");
 
-            LOGGER.debug("Calling: " + url.toString());
-//System.out.println("Calling: " + url.toString());
-            CloseableHttpClient httpClient = HttpClients.createDefault();
-            HttpGet get = new HttpGet(url.toString());
+            LOGGER.debug("Calling: " + url);
 
-            CloseableHttpResponse response = null;
-            Scanner in = null;
-            try {
-                response = httpClient.execute(get);
-//System.out.println(response.getStatusLine());
-                int code = response.getStatusLine().getStatusCode();
-                if (code != 200) {
-                    LOGGER.error("Failed isalive service for disambiguation service entity-fishing, HTTP error code : " + code);
-                    return false;
-                } else {
-                    result = true;
+            int timeout = 5;
+            RequestConfig config = RequestConfig.custom()
+                    .setConnectTimeout(timeout * 100)
+                    .setConnectionRequestTimeout(timeout * 100)
+                    .setSocketTimeout(timeout * 100).build();
+
+            try (CloseableHttpClient httpClient = HttpClientBuilder.create()
+                    .setDefaultRequestConfig(config)
+                    .build();) {
+                HttpGet get = new HttpGet(url.toString());
+
+                try (CloseableHttpResponse response = httpClient.execute(get)) {
+                    int code = response.getStatusLine().getStatusCode();
+                    if (code != 200) {
+                        LOGGER.error("Failed isalive service for disambiguation service entity-fishing, HTTP error code : " + code);
+                        return false;
+                    } else {
+                        result = true;
+                    }
                 }
-            } finally {
-                if (in != null)
-                    in.close();
-                if (response != null)
-                    response.close();
             }
+
         } catch (MalformedURLException e) {
-            LOGGER.error("disambiguation service not available: MalformedURLException");
+            LOGGER.error("Disambiguation service not available: MalformedURLException");
         } catch (HttpHostConnectException e) {
-            LOGGER.error("cannot connect to the disambiguation service");
+            LOGGER.error("Cannot connect to the disambiguation service");
         } catch(Exception e) {
-            LOGGER.error("disambiguation service not available", e);
+            LOGGER.error("Disambiguation service not available: generic error", e);
         }
 
         return result;

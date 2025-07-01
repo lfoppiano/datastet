@@ -1,42 +1,39 @@
 package org.grobid.core.utilities;
 
-import java.io.*;
-import javax.xml.parsers.*;
-import javax.xml.transform.*;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import javax.xml.namespace.NamespaceContext;
-import javax.xml.xpath.*;
-
-import java.util.Iterator;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.TreeMap;
-
-import javax.xml.parsers.*;
-import javax.xml.transform.*;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import javax.xml.namespace.NamespaceContext;
-import javax.xml.xpath.*;
-
-import org.w3c.dom.*;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.StringUtils;
-
-import org.grobid.core.document.xml.XmlBuilderUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.grobid.core.data.BiblioItem;
 import org.grobid.core.sax.BiblStructSaxHandler;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.w3c.dom.Text;
+import org.xml.sax.InputSource;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathFactory;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.*;
+
+import static org.grobid.core.engines.DatasetParser.normalize;
 
 /**
  *  Some convenient methods for suffering a bit less with XML.
@@ -44,6 +41,10 @@ import org.slf4j.LoggerFactory;
 public class XMLUtilities {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(XMLUtilities.class);
+
+    public static final String BIBLIO_CALLOUT_TYPE = "bibr";
+    public static final String URL_TYPE = "url";
+    private static final String URI_TYPE = "uri";
 
     public static String toPrettyString(String xml, int indent) {
         try {
@@ -83,7 +84,7 @@ public class XMLUtilities {
 
     public static Element getFirstDirectChild(Element parent, String name) {
         for(Node child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
-            if (child instanceof Element && name.equals(child.getNodeName())) 
+            if (child instanceof Element && name.equals(child.getNodeName()))
                 return (Element) child;
         }
         return null;
@@ -92,8 +93,8 @@ public class XMLUtilities {
     public static Element getLastDirectChild(Element parent, String name) {
         NodeList children = parent.getChildNodes();
         for(int j=children.getLength()-1; j>0; j--) {
-            Node child = children.item(j); 
-            if (child instanceof Element && name.equals(child.getNodeName())) 
+            Node child = children.item(j);
+            if (child instanceof Element && name.equals(child.getNodeName()))
                 return (Element) child;
         }
         return null;
@@ -113,18 +114,18 @@ public class XMLUtilities {
         return found ? buf.toString() : null;
     }
 
-    public static BiblioItem parseTEIBiblioItem(org.w3c.dom.Element biblStructElement) {
+    public static BiblioItem parseTEIBiblioItem(org.w3c.dom.Document doc, org.w3c.dom.Element biblStructElement) {
         BiblStructSaxHandler handler = new BiblStructSaxHandler();
         String teiXML = null;
         try {
             SAXParserFactory spf = SAXParserFactory.newInstance();
             SAXParser p = spf.newSAXParser();
-            teiXML = serialize(null, biblStructElement);
+            teiXML = serialize(doc, biblStructElement);
             p.parse(new InputSource(new StringReader(teiXML)), handler);
         } catch(Exception e) {
             if (teiXML != null)
                 LOGGER.warn("The parsing of the biblStruct from TEI document failed for: " + teiXML);
-            else 
+            else
                 LOGGER.warn("The parsing of the biblStruct from TEI document failed for: " + biblStructElement.toString());
         }
         return handler.getBiblioItem();
@@ -139,7 +140,7 @@ public class XMLUtilities {
             if (node.getNodeType() == Node.ELEMENT_NODE) {
                 if ("ref".equals(node.getNodeName()))
                     continue;
-            } 
+            }
             if (node.getNodeType() == Node.TEXT_NODE) {
                 buf.append(node.getNodeValue());
                 found = true;
@@ -148,44 +149,64 @@ public class XMLUtilities {
         return found ? buf.toString() : null;
     }
 
-    public static Pair<String,Map<String,Pair<OffsetPosition,String>>> getTextNoRefMarkersAndMarkerPositions(Element element, int globalPos) {
+    public static String getTextRecursively(Node node) {
+        StringBuilder textContent = new StringBuilder();
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node child = children.item(i);
+            if (child.getNodeType() == Node.TEXT_NODE) {
+                textContent.append(child.getNodeValue());
+            } else if (child.getNodeType() == Node.ELEMENT_NODE) {
+                textContent.append(getTextRecursively(child));
+            }
+        }
+        return textContent.toString();
+    }
+    /**
+     * @return Pair with text or null on the left and a Triple with (position, target and type)
+     */
+    public static Pair<String, Map<String,Triple<OffsetPosition, String, String>>> getTextNoRefMarkersAndMarkerPositions(Element element, int globalPos) {
         StringBuffer buf = new StringBuffer();
-        NodeList list = element.getChildNodes();
+        NodeList nodeChildren = element.getChildNodes();
         boolean found = false;
         int indexPos = globalPos;
 
         // map a ref string with its position and the reference key as present in the XML
-        Map<String,Pair<OffsetPosition,String>> right = new TreeMap<>();
+        Map<String, Triple<OffsetPosition,String, String>> right = new TreeMap<>();
 
         // the key of the reference
-        String bibId = null;
+        String target = null;
 
-        for (int i = 0; i < list.getLength(); i++) {
-            Node node = list.item(i);
+        for (int i = 0; i < nodeChildren.getLength(); i++) {
+            Node node = nodeChildren.item(i);
             if (node.getNodeType() == Node.ELEMENT_NODE) {
                 if ("ref".equals(node.getNodeName())) {
 
-                    if ("bibr".equals(((Element) node).getAttribute("type"))) {
-                        bibId = ((Element) node).getAttribute("target");
-                        if (bibId != null && bibId.startsWith("#")) {
-                            bibId = bibId.substring(1, bibId.length());
+                    if (BIBLIO_CALLOUT_TYPE.equals(((Element) node).getAttribute("type"))) {
+                        target = ((Element) node).getAttribute("target");
+                        if (target != null && target.startsWith("#")) {
+                            target = target.substring(1, target.length());
                         }
+                    } else if (URI_TYPE.equals(((Element) node).getAttribute("type")) || URL_TYPE.equals(((Element) node).getAttribute("type"))) {
+                        target = ((Element) node).getAttribute("target");
                     }
 
                     // get the ref marker text
                     NodeList list2 = node.getChildNodes();
                     for (int j = 0; j < list2.getLength(); j++) {
-                        Node node2 = list2.item(j);
-                        if (node2.getNodeType() == Node.TEXT_NODE) {
-                            String chunk = node2.getNodeValue();
+                        Node subChildNode = list2.item(j);
+                        if (subChildNode.getNodeType() == Node.TEXT_NODE) {
+                            String chunk = normalize(getTextRecursively(node));
 
-                            if ("bibr".equals(((Element) node).getAttribute("type"))) {
-                                Pair<OffsetPosition, String> refInfo = Pair.of(new OffsetPosition(indexPos, indexPos+chunk.length()), bibId);
-                                right.put(chunk, refInfo);
+                            if (BIBLIO_CALLOUT_TYPE.equals(((Element) node).getAttribute("type"))) {
+                                Triple<OffsetPosition, String, String> refInfo = Triple.of(new OffsetPosition(indexPos, indexPos+chunk.length()), target, BIBLIO_CALLOUT_TYPE);
+                                right.put(StringUtils.strip(chunk), refInfo);
                                 String holder = StringUtils.repeat(" ", chunk.length());
                                 buf.append(holder);
-                            } else if ("uri".equals(((Element) node).getAttribute("type")) || "url".equals(((Element) node).getAttribute("type"))) {
-                                // added like normal text
+                            } else if (URI_TYPE.equals(((Element) node).getAttribute("type")) || URL_TYPE.equals(((Element) node).getAttribute("type"))) {
+                                org.apache.commons.lang3.tuple.Triple<OffsetPosition, String, String> urlInfo = org.apache.commons.lang3.tuple.Triple.of(new OffsetPosition(indexPos, indexPos+chunk.length()), target, URL_TYPE);
+                                right.put(StringUtils.strip(chunk), urlInfo);
+                                // we still add added like normal text
                                 buf.append(chunk);
                                 found = true;
                             } else {
@@ -202,7 +223,7 @@ public class XMLUtilities {
                     for (int j = 0; j < list2.getLength(); j++) {
                         Node node2 = list2.item(j);
                         if (node2.getNodeType() == Node.TEXT_NODE) {
-                            String chunk = node2.getNodeValue();
+                            String chunk = normalize(node2.getNodeValue());
                             buf.append(chunk);
                             found = true;
                             indexPos += chunk.length();
@@ -210,7 +231,7 @@ public class XMLUtilities {
                     }
                 }
             } else if (node.getNodeType() == Node.TEXT_NODE) {
-                String chunk = node.getNodeValue();
+                String chunk = normalize(node.getNodeValue());
                 buf.append(chunk);
                 found = true;
                 indexPos += chunk.length();
@@ -248,9 +269,9 @@ public class XMLUtilities {
             XPathFactory xpathFactory = XPathFactory.newInstance();
             // XPath to find empty text nodes.
             XPathExpression xpathExp = xpathFactory.newXPath().compile(
-                    "//text()[normalize-space(.) = '']");  
-            NodeList emptyTextNodes = (NodeList) 
-                    xpathExp.evaluate(doc, XPathConstants.NODESET);
+                    "//text()[normalize-space(.) = '']");
+            NodeList emptyTextNodes = (NodeList)
+                    xpathExp.evaluate(node, XPathConstants.NODESET);
 
             // Remove each empty text node from document.
             for (int i = 0; i < emptyTextNodes.getLength(); i++) {
@@ -362,7 +383,7 @@ public class XMLUtilities {
         // Return pretty print xml string
         StringWriter stringWriter = new StringWriter();
         transformer.transform(new DOMSource(document), new StreamResult(stringWriter));
-        
+
         // write result to file
         FileUtils.writeStringToFile(outputFile, stringWriter.toString(), "UTF-8");
 
@@ -380,7 +401,7 @@ public class XMLUtilities {
 
     /**
      * Return the document ID where the annotation is located
-     */ 
+     */
     private static String getDocIdFromRs(org.w3c.dom.Node node) {
         String result = null;
         // first go up to the tei element root
@@ -417,11 +438,11 @@ public class XMLUtilities {
     }
 
     public static String stripNonValidXMLCharacters(String in) {
-        StringBuffer out = new StringBuffer(); 
-        char current; 
+        StringBuffer out = new StringBuffer();
+        char current;
 
-        if (in == null || ("".equals(in))) 
-            return ""; 
+        if (in == null || ("".equals(in)))
+            return "";
         for (int i = 0; i < in.length(); i++) {
             current = in.charAt(i); // NOTE: No IndexOutOfBoundsException caught here; it should not happen.
             if ((current == 0x9) ||
@@ -433,7 +454,7 @@ public class XMLUtilities {
                 out.append(current);
         }
         return out.toString();
-    }    
+    }
 
     private static List<String> textualElements = Arrays.asList("p", "figDesc");
 
@@ -445,11 +466,11 @@ public class XMLUtilities {
         final NodeList children = node.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
             final Node n = children.item(i);
-            if ( (n.getNodeType() == Node.ELEMENT_NODE) && 
+            if ( (n.getNodeType() == Node.ELEMENT_NODE) &&
                  (textualElements.contains(n.getNodeName())) ) {
                 // text content
                 //String text = n.getTextContent();
-                StringBuffer textBuffer = new StringBuffer();
+                StringBuilder textBuffer = new StringBuilder();
                 NodeList childNodes = n.getChildNodes();
                 for(int y=0; y<childNodes.getLength(); y++) {
                     textBuffer.append(serialize(doc, childNodes.item(y)));
@@ -486,7 +507,7 @@ public class XMLUtilities {
                     try {
                         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
                         factory.setNamespaceAware(true);
-                        org.w3c.dom.Document d = factory.newDocumentBuilder().parse(new InputSource(new StringReader(fullSent)));                
+                        org.w3c.dom.Document d = factory.newDocumentBuilder().parse(new InputSource(new StringReader(fullSent)));
                     } catch(Exception e) {
                         fail = true;
                     }
@@ -503,7 +524,7 @@ public class XMLUtilities {
                     //System.out.println("-----------------");
                     sent = sent.replace("\n", " ");
                     sent = sent.replaceAll("( )+", " ");
-                
+
                     //Element sentenceElement = doc.createElement("s");                        
                     //sentenceElement.setTextContent(sent);
                     //newNodes.add(sentenceElement);
@@ -533,12 +554,12 @@ public class XMLUtilities {
                 if (n.getNodeName().equals("figDesc")) {
                     Element theDiv = doc.createElementNS("http://www.tei-c.org/ns/1.0", "div");
                     Element theP = doc.createElementNS("http://www.tei-c.org/ns/1.0", "p");
-                    for(Node theNode : newNodes) 
+                    for(Node theNode : newNodes)
                         theP.appendChild(theNode);
                     theDiv.appendChild(theP);
                     n.appendChild(theDiv);
                 } else {
-                    for(Node theNode : newNodes) 
+                    for(Node theNode : newNodes)
                         n.appendChild(theNode);
                 }
 
@@ -555,7 +576,7 @@ public class XMLUtilities {
      * @param args Command line arguments.
      */
     public static void main(String[] args) {
-       
+
         // we are expecting one argument, absolute path to the TEICorpus document
 
         if (args.length != 1) {
